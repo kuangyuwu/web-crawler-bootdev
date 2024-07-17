@@ -12,11 +12,17 @@ const normalizeURL = (urlStr) => {
 
 const getURLsFromHTML = (htmlBody, baseURL) => {
   const { document } = new JSDOM(htmlBody, { url: baseURL }).window;
-  const nodes = document.querySelectorAll("a");
+  const anchors = document.querySelectorAll("a");
   const urls = [];
-  for (let node of nodes) {
-    let url = new URL(node.getAttribute("href"), baseURL);
-    urls.push(url.toString());
+  for (const anchor of anchors) {
+    if (anchor.hasAttribute("href")) {
+      try {
+        let url = new URL(node.getAttribute("href"), baseURL);
+        urls.push(url.href);
+      } catch (err) {
+        console.log(`${err.message}: ${href}`);
+      }
+    }
   }
   return urls;
 };

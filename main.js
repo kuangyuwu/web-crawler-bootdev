@@ -1,8 +1,8 @@
 import { argv } from "node:process";
 
-import { crawlPage } from "./crawl.js";
+import { crawlPage, printReport } from "./crawl.js";
 
-function main() {
+async function main() {
   if (argv.length < 3) {
     console.log(`no url provided`);
     console.log(`run the program by "npm run start BASE_URL"`);
@@ -15,7 +15,8 @@ function main() {
   }
   const url = argv[2];
   console.log(`Start crawling ${url} ...`);
-  crawlPage(url);
+  const pages = await crawlPage(url);
+  printReport(pages);
 }
 
 main();

@@ -1,9 +1,8 @@
 import { JSDOM } from "jsdom";
 
-const normalizeURL = (urlStr) => {
-  const url = new URL(urlStr);
-  //   console.log(url, url.pathname, url.hostname);
-  let result = url.hostname + url.pathname;
+const normalizeURL = (url) => {
+  const urlObj = new URL(url);
+  let result = urlObj.hostname + urlObj.pathname;
   if (result.slice(-1) === "/") {
     result = result.slice(0, -1);
   }
@@ -16,9 +15,10 @@ const getURLsFromHTML = (htmlBody, baseURL) => {
   const urls = [];
   for (const anchor of anchors) {
     if (anchor.hasAttribute("href")) {
+      let href = anchor.getAttribute("href");
       try {
-        let url = new URL(node.getAttribute("href"), baseURL);
-        urls.push(url.href);
+        let url = new URL(href, baseURL).href;
+        urls.push(url);
       } catch (err) {
         console.log(`${err.message}: ${href}`);
       }
@@ -27,34 +27,67 @@ const getURLsFromHTML = (htmlBody, baseURL) => {
   return urls;
 };
 
-const crawlPage = async (currURL) => {
-  //
+const crawlPage = async (baseURL, currURL = baseURL, pages = {}) => {
+  if (Object.keys(pages).length > 99) {
+    return pages;
+  }
+
+  const baseURLObj = new URL(baseURL);
+  const currURLObj = new URL(currURL);
+
+  if (currURLObj.hostname !== baseURLObj.hostname) {
+    return pages;
+  }
+
+  const normalizedURL = normalizeURL(currURL);
+  if (pages[normalizedURL] !== undefined) {
+    pages[normalizedURL]++;
+    return pages;
+  }
+
+  pages[normalizedURL] = 1;
+  console.log(`Crawling page ${Object.keys(pages).length} ...`);
+  var htmlBody;
+  try {
+    htmlBody = await fetchHTML(currURL);
+  } catch (err) {
+    console.log(`Error fetching HTML from ${currURL}: ${err.message}`);
+    return pages;
+  }
+  const urls = getURLsFromHTML(htmlBody, baseURL);
+  for (const newURL of urls) {
+    pages = await crawlPage(baseURL, newURL, pages);
+  }
+  return pages;
+};
+
+const fetchHTML = async (url) => {
   const settings = {
     method: "GET",
   };
   let resp;
   try {
-    resp = await fetch(currURL, settings);
+    resp = await fetch(url, settings);
   } catch (err) {
-    console.log(`error fetching webpage ${currURL}: ${err.message}`);
-    return;
+    throw new Error(`Network error (${url}): ${err.message}`);
   }
   if (resp.status >= 400) {
-    console.log(`error response: status code ${resp.status}`);
-    return;
+    throw new Error(`HTTP error: ${resp.status} ${resp.statusText}`);
   }
   const contentType = resp.headers.get("content-type");
   if (!contentType || !contentType.includes("text/html")) {
-    console.log(`unexpected content type: ${contentType}`);
-    return;
+    throw new Error(`Incorrect content type: ${contentType}`);
   }
-  try {
-    console.log(await resp.text());
-  } catch (error) {
-    console.log(`error getting text`);
-    return;
-  }
-  return;
+  return resp.text();
 };
 
-export { normalizeURL, getURLsFromHTML, crawlPage };
+const printReport = (pages) => {
+  console.log(`Printing result report ...`);
+  const urls = Object.keys(pages);
+  urls.sort((a, b) => pages[b] - pages[a]);
+  for (const url of urls) {
+    console.log(`Found ${pages[url]} internal links to ${url}`);
+  }
+};
+
+export { normalizeURL, getURLsFromHTML, crawlPage, printReport };

@@ -27,4 +27,34 @@ const getURLsFromHTML = (htmlBody, baseURL) => {
   return urls;
 };
 
-export { normalizeURL, getURLsFromHTML };
+const crawlPage = async (currURL) => {
+  //
+  const settings = {
+    method: "GET",
+  };
+  let resp;
+  try {
+    resp = await fetch(currURL, settings);
+  } catch (err) {
+    console.log(`error fetching webpage ${currURL}: ${err.message}`);
+    return;
+  }
+  if (resp.status >= 400) {
+    console.log(`error response: status code ${resp.status}`);
+    return;
+  }
+  const contentType = resp.headers.get("content-type");
+  if (!contentType || !contentType.includes("text/html")) {
+    console.log(`unexpected content type: ${contentType}`);
+    return;
+  }
+  try {
+    console.log(await resp.text());
+  } catch (error) {
+    console.log(`error getting text`);
+    return;
+  }
+  return;
+};
+
+export { normalizeURL, getURLsFromHTML, crawlPage };
